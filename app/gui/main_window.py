@@ -1,0 +1,148 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QListWidget,
+    QMainWindow,
+    QPushButton,
+    QSplitter,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
+from app.audio.player import AudioPlayer
+from app.core.controllers import (
+    AppContext,
+    GenerationController,
+    PlaybackController,
+    ProjectController,
+)
+from app.core.mix_service import MixService
+from app.core.model_manager import ModelManager
+from app.core.music_gen_service import MusicGenService
+from app.core.nnsvs_service import NNSVSService
+from app.models.project_models import ContentType
+from app.storage.project_repository import ProjectRepository
+from app.storage.preset_repository import PresetRepository
+
+from .tabs.instrument_tab import InstrumentTab
+from .tabs.project_tab import ProjectTab
+from .tabs.sfx_tab import SfxTab
+from .tabs.vocal_tab import VocalTab
+
+
+class MainWindow(QMainWindow):
+    def __init__(self) -> None:
+        super().__init__()
+        self.setWindowTitle("Audio Generation Suite")
+        self.resize(1200, 800)
+
+        # Core context and controllers
+        model_manager = ModelManager()
+        music_service = MusicGenService(model_manager)
+        nnsvs_service = NNSVSService(model_manager)
+        mix_service = MixService()
+        project_repo = ProjectRepository(Path.cwd() / "projects")
+        audio_player = AudioPlayer()
+
+        self.ctx = AppContext(
+            model_manager=model_manager,
+            music_service=music_service,
+            nnsvs_service=nnsvs_service,
+            mix_service=mix_service,
+            project_repo=project_repo,
+            audio_player=audio_player,
+        )
+
+        self.project_controller = ProjectController(self.ctx)
+        self.generation_controller = GenerationController(self.ctx)
+        self.playback_controller = PlaybackController(self.ctx)
+        self.preset_repo = PresetRepository()
+
+        self.current_project = None
+
+        self._init_ui()
+        self._load_projects()
+
+    def _init_ui(self) -> None:
+        central = QWidget()
+        layout = QHBoxLayout(central)
+
+        splitter = QSplitter()
+        layout.addWidget(splitter)
+        self.setCentralWidget(central)
+
+        # Left: project list and controls
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+
+        self.project_list = QListWidget()
+        self.btn_new_instr_project = QPushButton("Новый проект: Музыка")
+        self.btn_new_song_project = QPushButton("Новый проект: Песня")
+        self.btn_new_sfx_project = QPushButton("Новый проект: SFX")
+
+        left_layout.addWidget(self.project_list)
+        left_layout.addWidget(self.btn_new_instr_project)
+        left_layout.addWidget(self.btn_new_song_project)
+        left_layout.addWidget(self.btn_new_sfx_project)
+
+        splitter.addWidget(left_widget)
+
+        # Right: tabs
+        self.tabs = QTabWidget()
+        splitter.addWidget(self.tabs)
+        splitter.setStretchFactor(1, 3)
+
+        self.instrument_tab = InstrumentTab(self)
+        self.vocal_tab = VocalTab(self)
+        self.sfx_tab = SfxTab(self)
+        self.project_tab = ProjectTab(self)
+
+        self.tabs.addTab(self.instrument_tab, "Музыка (инструментал)")
+        self.tabs.addTab(self.vocal_tab, "Песня (музыка + вокал)")
+        self.tabs.addTab(self.sfx_tab, "SFX / атмосферы")
+        self.tabs.addTab(self.project_tab, "Проект")
+
+        self.btn_new_instr_project.clicked.connect(
+            lambda: self._create_project(ContentType.INSTRUMENTAL)
+        )
+        self.btn_new_song_project.clicked.connect(
+            lambda: self._create_project(ContentType.SONG)
+        )
+        self.btn_new_sfx_project.clicked.connect(
+            lambda: self._create_project(ContentType.SFX)
+        )
+        self.project_list.currentRowChanged.connect(self._on_project_selected)
+
+    def _load_projects(self) -> None:
+        self.project_list.clear()
+        self._projects = self.project_controller.list_projects()
+        for proj in self._projects:
+            self.project_list.addItem(f"{proj.name} ({proj.id})")
+        if self._projects:
+            self.project_list.setCurrentRow(0)
+
+    def _create_project(self, content_type: ContentType) -> None:
+        base_name = {
+            ContentType.INSTRUMENTAL: "Новый инструментальный проект",
+            ContentType.SONG: "Новый проект песни",
+            ContentType.SFX: "Новый проект SFX",
+        }[content_type]
+        project = self.project_controller.create_project(base_name, content_type)
+        self._load_projects()
+        idx = next(
+            (i for i, p in enumerate(self._projects) if p.id == project.id),
+            len(self._projects) - 1,
+        )
+        self.project_list.setCurrentRow(idx)
+
+    def _on_project_selected(self, index: int) -> None:
+        if index < 0 or index >= len(self._projects):
+            self.current_project = None
+            return
+        self.current_project = self._projects[index]
+        self.project_tab.refresh()
+

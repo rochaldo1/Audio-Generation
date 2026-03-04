@@ -1,0 +1,24 @@
+torch==2.1.2+cu118
+torchaudio==2.1.2+cu118
+
+# AudioCraft / MusicGen
+audiocraft
+
+# NNSVS (singing voice synthesis)
+nnsvs
+
+# GUI
+PySide6
+
+# Audio I/O and processing
+soundfile
+pydub
+ffmpeg-python
+
+# Optional playback (can also use PySide6 QMediaPlayer)
+sounddevice
+
+# Data and utilities
+sqlalchemy
+python-dotenv
+
