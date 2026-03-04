@@ -14,16 +14,14 @@ from PySide6.QtWidgets import (
 )
 
 from app.audio.player import AudioPlayer
+from app.core.ace_step_service import AceStepService
 from app.core.controllers import (
     AppContext,
     GenerationController,
     PlaybackController,
     ProjectController,
 )
-from app.core.mix_service import MixService
 from app.core.model_manager import ModelManager
-from app.core.music_gen_service import MusicGenService
-from app.core.nnsvs_service import NNSVSService
 from app.models.project_models import ContentType
 from app.storage.project_repository import ProjectRepository
 from app.storage.preset_repository import PresetRepository
@@ -39,20 +37,18 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Audio Generation Suite")
         self.resize(1200, 800)
+        projects_root = (Path.cwd() / "projects").resolve()
+        self.statusBar().showMessage(f"Проекты сохраняются в: {projects_root}")
 
         # Core context and controllers
         model_manager = ModelManager()
-        music_service = MusicGenService(model_manager)
-        nnsvs_service = NNSVSService(model_manager)
-        mix_service = MixService()
+        ace_step_service = AceStepService()
         project_repo = ProjectRepository(Path.cwd() / "projects")
         audio_player = AudioPlayer()
 
         self.ctx = AppContext(
             model_manager=model_manager,
-            music_service=music_service,
-            nnsvs_service=nnsvs_service,
-            mix_service=mix_service,
+            ace_step_service=ace_step_service,
             project_repo=project_repo,
             audio_player=audio_player,
         )

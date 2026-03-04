@@ -59,6 +59,9 @@ class TrackVersion:
     vocal_params: Optional[VocalParams] = None
     sfx_params: Optional[SfxParams] = None
 
+    # Какой движок использовался для генерации (например, "ace-step-1.5").
+    engine: Optional[str] = None
+
     duration_seconds: Optional[float] = None
     sample_rate: Optional[int] = None
     bitrate_kbps: Optional[int] = None

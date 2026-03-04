@@ -3,11 +3,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from app.core.ace_step_service import AceStepService
 from app.core.controllers import AppContext, GenerationController, ProjectController
-from app.core.mix_service import MixService
 from app.core.model_manager import ModelManager
-from app.core.music_gen_service import MusicGenService
-from app.core.nnsvs_service import NNSVSService
 from app.models.project_models import ContentType, GenerationParams, Project
 from app.storage.project_repository import ProjectRepository
 from app.audio.player import AudioPlayer
@@ -20,17 +18,13 @@ def main() -> None:
     args = parser.parse_args()
 
     model_manager = ModelManager()
-    music_service = MusicGenService(model_manager)
-    nnsvs_service = NNSVSService(model_manager)
-    mix_service = MixService()
+    ace_step_service = AceStepService()
     project_repo = ProjectRepository(Path.cwd() / "projects_cli")
     audio_player = AudioPlayer()
 
     ctx = AppContext(
         model_manager=model_manager,
-        music_service=music_service,
-        nnsvs_service=nnsvs_service,
-        mix_service=mix_service,
+        ace_step_service=ace_step_service,
         project_repo=project_repo,
         audio_player=audio_player,
     )

@@ -92,6 +92,7 @@ class ProjectRepository:
             "genre": tv.genre,
             "mood": tv.mood,
             "tempo_bpm": tv.tempo_bpm,
+            "engine": tv.engine,
         }
 
     @staticmethod
@@ -115,5 +116,6 @@ class ProjectRepository:
             genre=data.get("genre"),
             mood=data.get("mood"),
             tempo_bpm=data.get("tempo_bpm"),
+            engine=data.get("engine"),
         )
 

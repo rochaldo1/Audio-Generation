@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 
@@ -20,54 +20,60 @@ class ModelManager:
 
     def __init__(self, config: Optional[ModelConfig] = None) -> None:
         self.config = config or ModelConfig()
-        self._musicgen_model = None
+        self._musicgen_model: Optional[Tuple[object, object]] = None
         self._nnsvs_engines: dict[str, object] = {}
 
     @property
     def device(self) -> torch.device:
         return torch.device(self.config.device)
 
-    def get_musicgen(self):
+    def get_musicgen(self) -> Tuple[object, object]:
         """
-        Lazily loads the MusicGen model with the configured size.
+        Lazily loads a MusicGen model from Hugging Face transformers.
         """
         if self._musicgen_model is None:
             try:
-                from audiocraft.models import musicgen
+                from transformers import AutoProcessor, MusicgenForConditionalGeneration
             except ImportError as exc:
                 raise RuntimeError(
-                    "audiocraft is not installed. Install it via `pip install audiocraft`."
+                    "transformers is not installed. Install it via `pip install transformers`."
                 ) from exc
 
-            model_name = self.config.musicgen_model_size
-            # 'small' is a good compromise for 4 GB VRAM
-            self._musicgen_model = musicgen.MusicGen.get_pretrained(
-                model_name, device=str(self.device)
-            )
+            size_to_repo = {
+                "tiny": "facebook/musicgen-small",
+                "small": "facebook/musicgen-small",
+                "medium": "facebook/musicgen-medium",
+            }
+            repo_id = size_to_repo.get(self.config.musicgen_model_size, "facebook/musicgen-small")
+
+            processor = AutoProcessor.from_pretrained(repo_id)
+            model = MusicgenForConditionalGeneration.from_pretrained(repo_id)
+            model.to(self.device)
+
+            self._musicgen_model = (processor, model)
         return self._musicgen_model
 
     def get_nnsvs_engine(self, voice_id: str = "default"):
         """
-        Lazily loads an NNSVS engine for a given voice.
-
-        The actual loading logic (paths to pre-trained models, configs, etc.)
-        should be configured separately. Here we provide a placeholder that can
-        be wired to your NNSVS recipe.
+        Lazily loads an NNSVS engine for a given voice using pre-trained
+        models hosted on Hugging Face.
         """
         if voice_id in self._nnsvs_engines:
             return self._nnsvs_engines[voice_id]
 
         try:
-            from nnsvs import inference as nnsvs_inference  # type: ignore
+            from nnsvs.pretrained import create_svs_engine  # type: ignore
         except ImportError as exc:
             raise RuntimeError(
                 "nnsvs is not installed. Install it via `pip install nnsvs`."
             ) from exc
 
-        # TODO: wire this to your actual NNSVS recipe and model paths.
-        # For now we raise an informative error to indicate that configuration is needed.
-        raise NotImplementedError(
-            "NNSVS engine loading is not configured. "
-            "Configure paths to pre-trained NNSVS models and replace this stub."
-        )
+        voice_repo_map = {
+            "default": "r9y9/yoko_latest",
+        }
+        repo_id = voice_repo_map.get(voice_id, "r9y9/yoko_latest")
+
+        engine = create_svs_engine(repo_id)
+        self._nnsvs_engines[voice_id] = engine
+        return engine
 

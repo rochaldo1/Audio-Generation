@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from PySide6.QtCore import QThread
 from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
+    QMessageBox,
+    QProgressDialog,
     QPushButton,
     QSpinBox,
     QTextEdit,
@@ -10,6 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.gui.generation_worker import GenerationKind, GenerationResult, GenerationWorker
 from app.models.project_models import GenerationParams
 
 
@@ -64,27 +68,69 @@ class InstrumentTab(QWidget):
         mw = self.main_window
         project = mw.current_project
         if project is None:
+            QMessageBox.warning(self, "Ошибка", "Сначала создайте или выберите проект.")
             return
 
         params = GenerationParams(
-            prompt=self.prompt_edit.toPlainText().strip(),
+            prompt=self.prompt_edit.toPlainText().strip() or "instrumental music",
             duration_seconds=self.duration_spin.value(),
             tempo_bpm=self.tempo_spin.value(),
             genre=self.genre_combo.currentText() or None,
             arrangement_density=self.density_combo.currentText(),
             structure_complexity=self.complexity_combo.currentText(),
         )
-        track = mw.generation_controller.generate_instrumental(project, params)
-        mw.project_tab.refresh()
-        mw.playback_controller.play_track(track)
+
+        def task():
+            track = mw.generation_controller.generate_instrumental(project, params)
+            return GenerationResult(kind=GenerationKind.INSTRUMENTAL, success=True, track=track)
+
+        self._run_generation(task, "Генерация инструментала...", self.btn_generate)
 
     def _on_variation_clicked(self) -> None:
         mw = self.main_window
         project = mw.current_project
         if project is None or not project.track_versions:
+            QMessageBox.warning(self, "Ошибка", "Сначала создайте проект и сгенерируйте трек.")
             return
         base_track = project.track_versions[-1]
-        track = mw.generation_controller.create_variation(project, base_track)
-        mw.project_tab.refresh()
-        mw.playback_controller.play_track(track)
+
+        def task():
+            track = mw.generation_controller.create_variation(project, base_track)
+            return GenerationResult(kind=GenerationKind.VARIATION, success=True, track=track)
+
+        self._run_generation(task, "Создание вариации...", self.btn_variation)
+
+    def _run_generation(
+        self,
+        task,
+        label: str,
+        button: QPushButton,
+    ) -> None:
+        progress = QProgressDialog(label, None, 0, 0, self)
+        progress.setWindowTitle("Пожалуйста, подождите")
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        progress.setMaximum(0)  # indeterminate
+        button.setEnabled(False)
+
+        thread = QThread()
+        worker = GenerationWorker(task)
+        worker.moveToThread(thread)
+
+        def on_finished(result: GenerationResult):
+            progress.close()
+            button.setEnabled(True)
+            thread.quit()
+            thread.wait()
+            if result.success and result.track:
+                mw = self.main_window
+                mw.project_tab.refresh()
+                mw.playback_controller.play_track(result.track)
+            elif result.error:
+                QMessageBox.critical(self, "Ошибка генерации", result.error)
+
+        worker.finished.connect(on_finished)
+        thread.started.connect(worker.run)
+        thread.start()
+        progress.exec()
 

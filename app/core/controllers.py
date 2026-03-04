@@ -7,10 +7,8 @@ from typing import Optional
 
 from app.audio.export_utils import export_to_flac, export_to_mp3
 from app.audio.player import AudioPlayer
-from app.core.mix_service import MixService
+from app.core.ace_step_service import AceStepService
 from app.core.model_manager import ModelManager
-from app.core.music_gen_service import MusicGenService
-from app.core.nnsvs_service import NNSVSService
 from app.models.project_models import (
     ContentType,
     GenerationParams,
@@ -26,9 +24,7 @@ from app.storage.project_repository import ProjectRepository
 @dataclass
 class AppContext:
     model_manager: ModelManager
-    music_service: MusicGenService
-    nnsvs_service: NNSVSService
-    mix_service: MixService
+    ace_step_service: AceStepService
     project_repo: ProjectRepository
     audio_player: AudioPlayer
 
@@ -63,13 +59,14 @@ class GenerationController:
 
     def generate_instrumental(self, project: Project, params: GenerationParams) -> TrackVersion:
         out_wav = project.base_path / f"{uuid.uuid4().hex[:8]}_instr.wav"
-        self.ctx.music_service.generate_instrumental(params, out_wav)
+        self.ctx.ace_step_service.generate_instrumental(params, out_wav)
 
         tv = TrackVersion(
             id=uuid.uuid4().hex[:8],
             track_type=TrackType.INSTRUMENTAL,
             audio_path_wav=out_wav,
             generation_params=params,
+            engine="ace-step-1.5",
         )
         project.track_versions.append(tv)
         self.ctx.project_repo.save_project(project)
@@ -94,6 +91,38 @@ class GenerationController:
         )
         return self.generate_instrumental(project, new_params)
 
+    def generate_vocal(
+        self,
+        project: Project,
+        params: VocalParams,
+        gen_params: Optional[GenerationParams] = None,
+    ) -> TrackVersion:
+        """
+        Generate full song (music + vocals) using ACE-Step.
+
+        Если gen_params не указан, используется дефолтная заготовка.
+        """
+        if gen_params is None:
+            gen_params = GenerationParams(
+                prompt="vocal song",
+                duration_seconds=30,
+            )
+
+        out_wav = project.base_path / f"{uuid.uuid4().hex[:8]}_song.wav"
+        self.ctx.ace_step_service.generate_song(gen_params, params, out_wav)
+
+        tv = TrackVersion(
+            id=uuid.uuid4().hex[:8],
+            track_type=TrackType.MIX,
+            audio_path_wav=out_wav,
+            vocal_params=params,
+            generation_params=gen_params,
+            engine="ace-step-1.5",
+        )
+        project.track_versions.append(tv)
+        self.ctx.project_repo.save_project(project)
+        return tv
+
     def generate_sfx(self, project: Project, params: SfxParams) -> TrackVersion:
         gen_params = GenerationParams(
             prompt=params.prompt,
@@ -101,13 +130,15 @@ class GenerationController:
             genre=None,
         )
         out_wav = project.base_path / f"{uuid.uuid4().hex[:8]}_sfx.wav"
-        self.ctx.music_service.generate_instrumental(gen_params, out_wav)
+        self.ctx.ace_step_service.generate_instrumental(gen_params, out_wav)
 
         tv = TrackVersion(
             id=uuid.uuid4().hex[:8],
             track_type=TrackType.SFX,
             audio_path_wav=out_wav,
             sfx_params=params,
+            generation_params=gen_params,
+            engine="ace-step-1.5",
         )
         project.track_versions.append(tv)
         self.ctx.project_repo.save_project(project)

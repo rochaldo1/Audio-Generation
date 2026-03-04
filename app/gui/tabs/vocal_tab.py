@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
-
+from PySide6.QtCore import QThread
 from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
-    QHBoxLayout,
     QLabel,
+    QMessageBox,
+    QProgressDialog,
     QPushButton,
     QSpinBox,
     QTextEdit,
@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.models.project_models import TrackType, VocalParams
+from app.gui.generation_worker import GenerationKind, GenerationResult, GenerationWorker
+from app.models.project_models import GenerationParams, VocalParams
 
 
 class VocalTab(QWidget):
@@ -28,6 +29,9 @@ class VocalTab(QWidget):
         form = QFormLayout()
 
         self.lyrics_edit = QTextEdit()
+        self.duration_spin = QSpinBox()
+        self.duration_spin.setRange(5, 300)
+        self.duration_spin.setValue(30)
         self.voice_combo = QComboBox()
         self.voice_combo.addItems(["default"])
 
@@ -42,6 +46,7 @@ class VocalTab(QWidget):
         self.intensity_spin.setValue(50)
 
         form.addRow("Текст песни:", self.lyrics_edit)
+        form.addRow("Длительность трека (сек):", self.duration_spin)
         form.addRow("Голос:", self.voice_combo)
         form.addRow("Стиль исполнения:", self.style_combo)
         form.addRow("Манера подачи:", self.delivery_combo)
@@ -49,39 +54,69 @@ class VocalTab(QWidget):
 
         layout.addLayout(form)
 
-        self.btn_generate_vocal = QPushButton("Сгенерировать вокал (а капелла)")
+        self.btn_generate_vocal = QPushButton("Сгенерировать песню (музыка + вокал)")
         layout.addWidget(self.btn_generate_vocal)
 
         info = QLabel(
-            "Примечание: NNSVSService пока является заглушкой.\n"
-            "Для реальной генерации вокала нужно настроить модели NNSVS."
+            "Введите текст песни (слова через пробел). "
+            "Модель r9y9/yoko_latest обучена на японском — для лучшего качества используйте японский текст или ромадзи."
         )
         layout.addWidget(info)
 
         self.btn_generate_vocal.clicked.connect(self._on_generate_clicked)
 
     def _on_generate_clicked(self) -> None:
-        # Placeholder: wiring to NNSVSService is not implemented yet.
-        # Keep method to avoid GUI errors; actual synthesis will raise
-        # NotImplementedError from NNSVSService.
         mw = self.main_window
         project = mw.current_project
         if project is None:
+            QMessageBox.warning(self, "Ошибка", "Сначала создайте или выберите проект.")
             return
 
-        params = VocalParams(
-            lyrics=self.lyrics_edit.toPlainText().strip(),
+        vocal_params = VocalParams(
+            lyrics=self.lyrics_edit.toPlainText().strip() or "la la la",
             voice_id=self.voice_combo.currentText(),
             style=self.style_combo.currentText(),
             delivery=self.delivery_combo.currentText(),
             intensity=self.intensity_spin.value() / 100.0,
             enable_background_voices=False,
         )
-        try:
-            # This will currently raise NotImplementedError.
-            out_path = project.base_path / "vocal_placeholder.wav"
-            mw.ctx.nnsvs_service.synthesize_vocals(params, out_path)
-        except NotImplementedError:
-            # In MVP we simply do nothing but keep the GUI functional.
-            pass
+
+        gen_params = GenerationParams(
+            prompt="vocal song",
+            duration_seconds=self.duration_spin.value(),
+        )
+
+        def task():
+            track = mw.generation_controller.generate_vocal(project, vocal_params, gen_params)
+            return GenerationResult(kind=GenerationKind.VOCAL, success=True, track=track)
+
+        self._run_generation(task, "Генерация вокала...", self.btn_generate_vocal)
+
+    def _run_generation(self, task, label: str, button: QPushButton) -> None:
+        progress = QProgressDialog(label, None, 0, 0, self)
+        progress.setWindowTitle("Пожалуйста, подождите")
+        progress.setMinimumDuration(0)
+        progress.setMaximum(0)
+        button.setEnabled(False)
+
+        thread = QThread()
+        worker = GenerationWorker(task)
+        worker.moveToThread(thread)
+
+        def on_finished(result: GenerationResult):
+            progress.close()
+            button.setEnabled(True)
+            thread.quit()
+            thread.wait()
+            if result.success and result.track:
+                mw = self.main_window
+                mw.project_tab.refresh()
+                mw.playback_controller.play_track(result.track)
+            elif result.error:
+                QMessageBox.critical(self, "Ошибка генерации", result.error)
+
+        worker.finished.connect(on_finished)
+        thread.started.connect(worker.run)
+        thread.start()
+        progress.exec()
 

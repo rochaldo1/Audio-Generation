@@ -3,16 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+import soundfile as sf  # type: ignore
+
+from app.core.lyrics_to_labels import build_labels_from_lyrics
 from app.core.model_manager import ModelManager
 from app.models.project_models import VocalParams
 
 
 class NNSVSService:
     """
-    Wrapper around NNSVS for vocal synthesis.
-
-    NOTE: This is a configurable stub that expects you to wire it to
-    actual NNSVS models and configurations.
+    Wrapper around NNSVS for vocal synthesis using pre-trained voices.
     """
 
     def __init__(self, model_manager: ModelManager) -> None:
@@ -27,11 +27,13 @@ class NNSVSService:
         """
         Synthesize a vocal waveform from lyrics and vocal parameters.
 
-        For now this method raises NotImplementedError to indicate that
-        NNSVS recipe-specific wiring is required.
+        Currently uses a built-in demo score to generate HTS labels and
+        the pre-trained voice engine loaded via ModelManager.
         """
-        raise NotImplementedError(
-            "NNSVSService.synthesize_vocals is not yet implemented. "
-            "Configure NNSVS models and implement the synthesis pipeline."
-        )
+        engine = self.model_manager.get_nnsvs_engine(params.voice_id)
+        labels = build_labels_from_lyrics(params)
+
+        wav, sr = engine.svs(labels)
+        sf.write(str(output_path), wav, sr)
+        return output_path
 

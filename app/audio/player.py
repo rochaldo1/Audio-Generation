@@ -20,7 +20,8 @@ class AudioPlayer:
         self._audio_output.setVolume(max(0, min(volume, 100)) / 100.0)
 
     def play_file(self, path: Path) -> None:
-        url = QUrl.fromLocalFile(str(path))
+        abs_path = path.resolve() if path.exists() else path
+        url = QUrl.fromLocalFile(str(abs_path))
         self._player.setSource(url)
         self._player.play()
 
