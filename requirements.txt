@@ -1,11 +1,5 @@
-torch==2.1.2+cu118
-torchaudio==2.1.2+cu118
-
-# AudioCraft / MusicGen
-audiocraft
-
-# NNSVS (singing voice synthesis)
-nnsvs
+# Music generation backend (ACE-Step 1.5)
+git+https://github.com/ace-step/ACE-Step.git
 
 # GUI
 PySide6

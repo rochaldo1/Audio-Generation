@@ -1,0 +1,32 @@
+{
+  "id": "23d3b781",
+  "name": "Новый инструментальный проект",
+  "content_type": "instrumental",
+  "track_versions": [
+    {
+      "id": "1bf6a1df",
+      "track_type": "instrumental",
+      "audio_path_wav": "C:\\Users\\Artur\\VSC\\Audio generation\\projects\\23d3b781\\2df42ced_instr.wav",
+      "audio_path_mp3": null,
+      "audio_path_flac": null,
+      "generation_params": {
+        "prompt": "Upbeat pop with guitar and simple drums",
+        "duration_seconds": 15,
+        "tempo_bpm": 125,
+        "genre": "pop",
+        "arrangement_density": "medium",
+        "structure_complexity": "simple",
+        "seed": null
+      },
+      "vocal_params": null,
+      "sfx_params": null,
+      "duration_seconds": null,
+      "sample_rate": null,
+      "bitrate_kbps": null,
+      "genre": null,
+      "mood": null,
+      "tempo_bpm": null,
+      "engine": "ace-step-1.5"
+    }
+  ]
+}

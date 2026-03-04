@@ -103,11 +103,19 @@ class VocalTab(QWidget):
         worker = GenerationWorker(task)
         worker.moveToThread(thread)
 
+        # Не даём Qt/Python уничтожить объекты, пока идёт генерация.
+        self._current_progress = progress
+        self._current_thread = thread
+        self._current_worker = worker
+
         def on_finished(result: GenerationResult):
             progress.close()
             button.setEnabled(True)
             thread.quit()
             thread.wait()
+            self._current_progress = None
+            self._current_thread = None
+            self._current_worker = None
             if result.success and result.track:
                 mw = self.main_window
                 mw.project_tab.refresh()

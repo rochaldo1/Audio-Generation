@@ -1,0 +1,47 @@
+{
+    "format": "wav",
+    "lora_name_or_path": "none",
+    "lora_weight": 1.0,
+    "task": "text2music",
+    "prompt": "Upbeat pop with guitar and simple drums, genre: pop, tempo: 125 bpm, arrangement density: medium, structure complexity: simple, no vocals, instrumental only",
+    "lyrics": "[inst]",
+    "audio_duration": 15.0,
+    "infer_step": 60,
+    "guidance_scale": 15.0,
+    "scheduler_type": "euler",
+    "cfg_type": "apg",
+    "omega_scale": 10.0,
+    "guidance_interval": 0.5,
+    "guidance_interval_decay": 0.0,
+    "min_guidance_scale": 3.0,
+    "use_erg_tag": true,
+    "use_erg_lyric": false,
+    "use_erg_diffusion": true,
+    "oss_steps": [],
+    "timecosts": {
+        "preprocess": 1.3495841026306152,
+        "diffusion": 147.93425917625427,
+        "latent2audio": 6.515310764312744
+    },
+    "actual_seeds": [
+        1
+    ],
+    "retake_seeds": [
+        3463971484
+    ],
+    "retake_variance": 0.5,
+    "guidance_scale_text": 0.0,
+    "guidance_scale_lyric": 0.0,
+    "repaint_start": 0,
+    "repaint_end": 0,
+    "edit_n_min": 0.0,
+    "edit_n_max": 1.0,
+    "edit_n_avg": 1,
+    "src_audio_path": null,
+    "edit_target_prompt": null,
+    "edit_target_lyrics": null,
+    "audio2audio_enable": false,
+    "ref_audio_strength": 0.5,
+    "ref_audio_input": null,
+    "audio_path": "C:\\Users\\Artur\\VSC\\Audio generation\\projects\\23d3b781\\2df42ced_instr.wav"
+}
