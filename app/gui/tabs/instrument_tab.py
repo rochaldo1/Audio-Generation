@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
     QMessageBox,
-    QProgressDialog,
     QPushButton,
     QSpinBox,
     QTextEdit,

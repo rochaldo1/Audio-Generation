@@ -23,9 +23,6 @@ class AudioPlayer(QObject):
         self._player.durationChanged.connect(self.durationChanged.emit)
         self._player.playbackStateChanged.connect(self.playbackStateChanged.emit)
 
-    def set_volume(self, volume: int) -> None:
-        self._audio_output.setVolume(max(0, min(volume, 100)) / 100.0)
-
     def play_file(self, path: Path) -> None:
         abs_path = path.resolve() if path.exists() else path
         url = QUrl.fromLocalFile(str(abs_path))

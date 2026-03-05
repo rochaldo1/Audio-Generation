@@ -5,10 +5,5 @@ git+https://github.com/ace-step/ACE-Step.git
 PySide6
 
 # Audio I/O and processing
-soundfile
 pydub
-ffmpeg-python
-
-# Optional playback (can also use PySide6 QMediaPlayer)
-sounddevice
 

@@ -1,4 +1,4 @@
 """
-Core services: model management, generation, and mixing.
+Core services: generation (ACE-Step), controllers.
 """
 
