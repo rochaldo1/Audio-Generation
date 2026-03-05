@@ -122,12 +122,14 @@ class MainWindow(QMainWindow):
         self.btn_new_song_project = QPushButton("Новый проект: Песня")
         self.btn_new_sfx_project = QPushButton("Новый проект: SFX")
         self.btn_rename_project = QPushButton("Переименовать проект")
+        self.btn_delete_project = QPushButton("Удалить проект")
 
         left_layout.addWidget(self.project_list)
         left_layout.addWidget(self.btn_new_instr_project)
         left_layout.addWidget(self.btn_new_song_project)
         left_layout.addWidget(self.btn_new_sfx_project)
         left_layout.addWidget(self.btn_rename_project)
+        left_layout.addWidget(self.btn_delete_project)
 
         splitter.addWidget(left_widget)
 
@@ -157,6 +159,7 @@ class MainWindow(QMainWindow):
         )
         self.project_list.currentRowChanged.connect(self._on_project_selected)
         self.btn_rename_project.clicked.connect(self._on_rename_project_clicked)
+        self.btn_delete_project.clicked.connect(self._on_delete_project_clicked)
 
     def _load_projects(self) -> None:
         self.project_list.clear()
@@ -209,6 +212,29 @@ class MainWindow(QMainWindow):
             return
         project.name = new_name
         self.project_controller.save_project(project)
+        self._load_projects()
+        self.project_tab.refresh()
+
+    def _on_delete_project_clicked(self) -> None:
+        project = self.current_project
+        if project is None:
+            QMessageBox.warning(
+                self, "Нет выбора",
+                "Выберите проект в списке слева для удаления.",
+            )
+            return
+        reply = QMessageBox.question(
+            self,
+            "Удалить проект",
+            f"Удалить проект «{project.name}»?\nВся папка проекта и все треки будут удалены с диска. Это необратимо.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        self.ctx.audio_player.release_media()
+        self.project_controller.delete_project(project)
+        self.current_project = None
         self._load_projects()
         self.project_tab.refresh()
 

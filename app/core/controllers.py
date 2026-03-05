@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 import shutil
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,6 +35,48 @@ class AppContext:
 class ProjectController:
     def __init__(self, ctx: AppContext) -> None:
         self.ctx = ctx
+
+    def delete_project(self, project: Project) -> None:
+        """Delete project and its folder from disk."""
+        project_dir = self.ctx.project_repo._project_dir(project.id)
+        if project_dir.exists():
+            shutil.rmtree(project_dir)
+
+    def delete_track(self, project: Project, track: TrackVersion) -> None:
+        """Remove track from project and delete its audio files from disk."""
+        base = project.base_path.resolve()
+
+        def _unlink(p: Optional[Path], retries: int = 2) -> None:
+            if not p:
+                return
+            fp = Path(p)
+            if not fp.is_absolute():
+                fp = base / fp.name
+            if not fp.exists():
+                return
+            for attempt in range(retries + 1):
+                try:
+                    fp.unlink(missing_ok=True)
+                    return
+                except PermissionError:
+                    if attempt < retries:
+                        time.sleep(0.2)
+                    else:
+                        raise
+
+        _unlink(track.audio_path_wav)
+        _unlink(track.audio_path_mp3)
+        _unlink(track.audio_path_flac)
+        if track.audio_path_wav:
+            stem = Path(track.audio_path_wav).stem
+            params_file = base / f"{stem}_input_params.json"
+            if params_file.exists():
+                try:
+                    params_file.unlink(missing_ok=True)
+                except PermissionError:
+                    pass
+        project.track_versions.remove(track)
+        self.ctx.project_repo.save_project(project)
 
     def create_project(self, name: str, content_type: ContentType) -> Project:
         project_id = uuid.uuid4().hex[:8]

@@ -57,6 +57,7 @@ class ProjectTab(QWidget):
         self.btn_export_flac = QPushButton("Экспорт FLAC")
         self.btn_open_folder = QPushButton("Открыть папку проекта")
         self.btn_rename_track = QPushButton("Переименовать трек")
+        self.btn_delete_track = QPushButton("Удалить трек")
 
         btn_row.addWidget(self.btn_play)
         btn_row.addWidget(self.btn_export_wav)
@@ -64,6 +65,7 @@ class ProjectTab(QWidget):
         btn_row.addWidget(self.btn_export_flac)
         btn_row.addWidget(self.btn_open_folder)
         btn_row.addWidget(self.btn_rename_track)
+        btn_row.addWidget(self.btn_delete_track)
 
         layout.addLayout(btn_row)
 
@@ -100,6 +102,7 @@ class ProjectTab(QWidget):
         self.btn_export_flac.clicked.connect(lambda: self._on_export_clicked("flac"))
         self.btn_open_folder.clicked.connect(self._on_open_folder_clicked)
         self.btn_rename_track.clicked.connect(self._on_rename_track_clicked)
+        self.btn_delete_track.clicked.connect(self._on_delete_track_clicked)
 
     def _connect_player(self) -> None:
         player = self.main_window.ctx.audio_player
@@ -286,5 +289,37 @@ class ProjectTab(QWidget):
         track.title = new_title
         mw = self.main_window
         mw.project_controller.save_project(mw.current_project)
+        self.refresh()
+
+    def _on_delete_track_clicked(self) -> None:
+        track = self._selected_track()
+        if not track:
+            QMessageBox.warning(
+                self, "Нет выбора",
+                "Выберите трек в списке для удаления.",
+            )
+            return
+        label = (track.title or "").strip() or f"{track.track_type.value}: {track.id}"
+        reply = QMessageBox.question(
+            self,
+            "Удалить трек",
+            f"Удалить трек «{label}»?\nАудиофайлы будут удалены с диска.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        mw = self.main_window
+        mw.ctx.audio_player.release_media()
+        try:
+            mw.project_controller.delete_track(mw.current_project, track)
+        except PermissionError:
+            QMessageBox.warning(
+                self,
+                "Файл занят",
+                "Не удалось удалить аудиофайл — он используется другой программой.\n"
+                "Закройте все программы, воспроизводящие этот трек, и попробуйте снова.",
+            )
+            return
         self.refresh()
 

@@ -41,6 +41,11 @@ class AudioPlayer(QObject):
     def stop(self) -> None:
         self._player.stop()
 
+    def release_media(self) -> None:
+        """Release the current media so the file handle is freed."""
+        self._player.stop()
+        self._player.setSource(QUrl())
+
     def position(self) -> int:
         return self._player.position()
 
