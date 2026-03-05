@@ -55,8 +55,16 @@ class PresetRepository:
         with path.open("w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-    def list_presets(self) -> List[str]:
-        return [p.stem for p in self.root_dir.glob("*.json")]
+    def list_presets(self, preset_type: Optional[str] = None) -> List[str]:
+        """Return preset names. If preset_type is set, filter by type (instrumental/vocal/sfx)."""
+        if preset_type is None:
+            return sorted(p.stem for p in self.root_dir.glob("*.json"))
+        result = []
+        for p in self.root_dir.glob("*.json"):
+            data = self._load_preset(p.stem)
+            if data and data.get("type") == preset_type:
+                result.append(p.stem)
+        return sorted(result)
 
     def load_instrumental_preset(self, name: str) -> Optional[GenerationParams]:
         data = self._load_preset(name)

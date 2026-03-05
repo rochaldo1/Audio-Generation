@@ -4,6 +4,8 @@ from PySide6.QtCore import QThread
 from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
+    QHBoxLayout,
+    QInputDialog,
     QMessageBox,
     QProgressDialog,
     QPushButton,
@@ -56,13 +58,64 @@ class InstrumentTab(QWidget):
 
         layout.addLayout(form)
 
+        preset_row = QHBoxLayout()
+        self.btn_save_preset = QPushButton("Сохранить пресет")
+        self.btn_load_preset = QPushButton("Загрузить пресет")
+        preset_row.addWidget(self.btn_save_preset)
+        preset_row.addWidget(self.btn_load_preset)
+        preset_row.addStretch()
+        layout.addLayout(preset_row)
+
         self.btn_generate = QPushButton("Сгенерировать инструментал")
         self.btn_variation = QPushButton("Создать вариацию")
         layout.addWidget(self.btn_generate)
         layout.addWidget(self.btn_variation)
 
+        self.btn_save_preset.clicked.connect(self._on_save_preset)
+        self.btn_load_preset.clicked.connect(self._on_load_preset)
         self.btn_generate.clicked.connect(self._on_generate_clicked)
         self.btn_variation.clicked.connect(self._on_variation_clicked)
+
+    def _on_save_preset(self) -> None:
+        name, ok = QInputDialog.getText(
+            self, "Сохранить пресет", "Имя пресета:", text=""
+        )
+        if not ok or not name or not name.strip():
+            return
+        params = GenerationParams(
+            prompt=self.prompt_edit.toPlainText().strip() or "instrumental music",
+            duration_seconds=self.duration_spin.value(),
+            tempo_bpm=self.tempo_spin.value(),
+            genre=self.genre_combo.currentText() or None,
+            arrangement_density=self.density_combo.currentText(),
+            structure_complexity=self.complexity_combo.currentText(),
+        )
+        self.main_window.preset_repo.save_instrumental_preset(name.strip(), params)
+        QMessageBox.information(self, "Пресет сохранён", f'Пресет "{name.strip()}" сохранён.')
+
+    def _on_load_preset(self) -> None:
+        presets = self.main_window.preset_repo.list_presets("instrumental")
+        if not presets:
+            QMessageBox.information(
+                self, "Загрузить пресет",
+                "Нет сохранённых инструментальных пресетов.",
+            )
+            return
+        name, ok = QInputDialog.getItem(
+            self, "Загрузить пресет", "Выберите пресет:", presets, 0, False
+        )
+        if not ok or not name:
+            return
+        params = self.main_window.preset_repo.load_instrumental_preset(name)
+        if params is None:
+            QMessageBox.warning(self, "Ошибка", "Не удалось загрузить пресет.")
+            return
+        self.prompt_edit.setPlainText(params.prompt or "")
+        self.duration_spin.setValue(params.duration_seconds)
+        self.tempo_spin.setValue(params.tempo_bpm or 120)
+        self.genre_combo.setCurrentText(params.genre or "")
+        self.density_combo.setCurrentText(params.arrangement_density)
+        self.complexity_combo.setCurrentText(params.structure_complexity)
 
     def _on_generate_clicked(self) -> None:
         mw = self.main_window

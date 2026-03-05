@@ -230,6 +230,11 @@ class AceStepService:
         parts.append(f"delivery: {vocal_params.delivery}")
         parts.append(f"intensity: {vocal_params.intensity:.2f}")
 
+        if vocal_params.enable_background_voices:
+            parts.append("with backing vocals")
+        else:
+            parts.append("no backing vocals")
+
         return ", ".join(parts)
 
     def _build_sfx_prompt(self, params: SfxParams) -> str:

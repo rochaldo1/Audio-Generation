@@ -4,6 +4,8 @@ from PySide6.QtCore import QThread
 from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
+    QHBoxLayout,
+    QInputDialog,
     QMessageBox,
     QPushButton,
     QSpinBox,
@@ -40,10 +42,55 @@ class SfxTab(QWidget):
 
         layout.addLayout(form)
 
+        preset_row = QHBoxLayout()
+        self.btn_save_preset = QPushButton("Сохранить пресет")
+        self.btn_load_preset = QPushButton("Загрузить пресет")
+        preset_row.addWidget(self.btn_save_preset)
+        preset_row.addWidget(self.btn_load_preset)
+        preset_row.addStretch()
+        layout.addLayout(preset_row)
+
         self.btn_generate = QPushButton("Сгенерировать SFX")
         layout.addWidget(self.btn_generate)
 
+        self.btn_save_preset.clicked.connect(self._on_save_preset)
+        self.btn_load_preset.clicked.connect(self._on_load_preset)
         self.btn_generate.clicked.connect(self._on_generate_clicked)
+
+    def _on_save_preset(self) -> None:
+        name, ok = QInputDialog.getText(
+            self, "Сохранить пресет", "Имя пресета:", text=""
+        )
+        if not ok or not name or not name.strip():
+            return
+        params = SfxParams(
+            prompt=self.prompt_edit.toPlainText().strip() or "ambient sound",
+            sfx_type=self.type_combo.currentText(),
+            duration_seconds=self.duration_spin.value(),
+        )
+        self.main_window.preset_repo.save_sfx_preset(name.strip(), params)
+        QMessageBox.information(self, "Пресет сохранён", f'Пресет "{name.strip()}" сохранён.')
+
+    def _on_load_preset(self) -> None:
+        presets = self.main_window.preset_repo.list_presets("sfx")
+        if not presets:
+            QMessageBox.information(
+                self, "Загрузить пресет",
+                "Нет сохранённых SFX пресетов.",
+            )
+            return
+        name, ok = QInputDialog.getItem(
+            self, "Загрузить пресет", "Выберите пресет:", presets, 0, False
+        )
+        if not ok or not name:
+            return
+        params = self.main_window.preset_repo.load_sfx_preset(name)
+        if params is None:
+            QMessageBox.warning(self, "Ошибка", "Не удалось загрузить пресет.")
+            return
+        self.prompt_edit.setPlainText(params.prompt or "")
+        self.type_combo.setCurrentText(params.sfx_type)
+        self.duration_spin.setValue(params.duration_seconds)
 
     def _on_generate_clicked(self) -> None:
         mw = self.main_window
