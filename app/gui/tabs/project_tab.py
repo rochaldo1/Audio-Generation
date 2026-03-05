@@ -5,9 +5,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+import re
+
 from PySide6.QtCore import Qt
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import (
+    QFileDialog,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -26,6 +29,11 @@ def _ms_to_str(ms: int) -> str:
     s = max(0, ms // 1000)
     m, s = divmod(s, 60)
     return f"{m}:{s:02d}"
+
+
+def _sanitize_filename(name: str) -> str:
+    """Remove chars invalid in Windows/Linux filenames."""
+    return re.sub(r'[<>:"/\\|?*]', "_", name).strip() or "audio"
 
 
 class ProjectTab(QWidget):
@@ -198,13 +206,39 @@ class ProjectTab(QWidget):
                 "Выберите трек в списке, затем нажмите «Экспорт»."
             )
             return
+        base_name = (track.title or "").strip() or f"{track.track_type.value}_{track.id}"
+        base_name = _sanitize_filename(base_name)
+        ext = fmt.lower()
+        filters = {
+            "wav": "WAV (*.wav)",
+            "mp3": "MP3 (*.mp3)",
+            "flac": "FLAC (*.flac)",
+        }
+        mw = self.main_window
+        if mw.current_project and mw.current_project.base_path.exists():
+            default_path = str(mw.current_project.base_path / f"{base_name}.{ext}")
+        else:
+            default_path = str(Path.home() / f"{base_name}.{ext}")
         try:
-            out_path = self.main_window.generation_controller.export_track(track, fmt)
-            abs_path = out_path.resolve()
+            result = QFileDialog.getSaveFileName(
+                self,
+                "Сохранить как",
+                default_path,
+                filters.get(ext, f"{ext.upper()} (*.{ext})"),
+            )
+        except Exception:
+            return
+        path_str = result[0] if result else ""
+        if not path_str or not str(path_str).strip():
+            return
+        out_path = Path(path_str)
+        if out_path.suffix.lower() != f".{ext}":
+            out_path = out_path.with_suffix(f".{ext}")
+        try:
+            mw.generation_controller.export_track(track, fmt, out_path)
             QMessageBox.information(
                 self, "Экспорт выполнен",
-                f"Файл сохранён:\n{abs_path}\n\n"
-                f"Папка проекта: {track.audio_path_wav.parent.resolve()}"
+                f"Файл сохранён:\n{out_path.resolve()}"
             )
         except Exception as e:
             QMessageBox.critical(

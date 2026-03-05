@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -143,23 +144,17 @@ class GenerationController:
         self.ctx.project_repo.save_project(project)
         return tv
 
-    def export_track(self, track: TrackVersion, export_format: str) -> Path:
+    def export_track(self, track: TrackVersion, export_format: str, output_path: Path) -> Path:
+        """Export track to the specified path. User chooses path via Save dialog."""
         if export_format == "wav":
-            return track.audio_path_wav
+            shutil.copy2(track.audio_path_wav, output_path)
+            return output_path
         if export_format == "mp3":
-            if track.audio_path_mp3 and track.audio_path_mp3.exists():
-                return track.audio_path_mp3
-            mp3_path = track.audio_path_wav.with_suffix(".mp3")
-            export_to_mp3(track.audio_path_wav, mp3_path)
-            track.audio_path_mp3 = mp3_path
-            return mp3_path
+            export_to_mp3(track.audio_path_wav, output_path)
+            return output_path
         if export_format == "flac":
-            if track.audio_path_flac and track.audio_path_flac.exists():
-                return track.audio_path_flac
-            flac_path = track.audio_path_wav.with_suffix(".flac")
-            export_to_flac(track.audio_path_wav, flac_path)
-            track.audio_path_flac = flac_path
-            return flac_path
+            export_to_flac(track.audio_path_wav, output_path)
+            return output_path
         raise ValueError(f"Unsupported export format: {export_format}")
 
 
