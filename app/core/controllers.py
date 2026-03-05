@@ -11,7 +11,6 @@ from typing import Optional
 from app.audio.export_utils import export_to_flac, export_to_mp3
 from app.audio.player import AudioPlayer
 from app.core.ace_step_service import AceStepService
-from app.core.model_manager import ModelManager
 from app.models.project_models import (
     ContentType,
     GenerationParams,
@@ -26,7 +25,6 @@ from app.storage.project_repository import ProjectRepository
 
 @dataclass
 class AppContext:
-    model_manager: ModelManager
     ace_step_service: AceStepService
     project_repo: ProjectRepository
     audio_player: AudioPlayer

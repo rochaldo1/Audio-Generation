@@ -12,7 +12,3 @@ ffmpeg-python
 # Optional playback (can also use PySide6 QMediaPlayer)
 sounddevice
 
-# Data and utilities
-sqlalchemy
-python-dotenv
-

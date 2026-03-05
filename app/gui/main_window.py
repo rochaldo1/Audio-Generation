@@ -24,7 +24,6 @@ from app.core.controllers import (
     PlaybackController,
     ProjectController,
 )
-from app.core.model_manager import ModelManager
 from app.models.project_models import ContentType
 from app.storage.project_repository import ProjectRepository
 from app.storage.preset_repository import PresetRepository
@@ -51,13 +50,11 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.generation_progress)
 
         # Core context and controllers
-        model_manager = ModelManager()
         ace_step_service = AceStepService()
         project_repo = ProjectRepository(Path.cwd() / "projects")
         audio_player = AudioPlayer()
 
         self.ctx = AppContext(
-            model_manager=model_manager,
             ace_step_service=ace_step_service,
             project_repo=project_repo,
             audio_player=audio_player,
