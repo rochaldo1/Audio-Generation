@@ -106,32 +106,29 @@ class InstrumentTab(QWidget):
         label: str,
         button: QPushButton,
     ) -> None:
-        progress = QProgressDialog(label, None, 0, 0, self)
-        progress.setWindowTitle("Пожалуйста, подождите")
-        progress.setMinimumDuration(0)
-        progress.setValue(0)
-        progress.setMaximum(0)  # indeterminate
         button.setEnabled(False)
 
-        thread = QThread()
+        thread = QThread(self)
         worker = GenerationWorker(task)
         worker.moveToThread(thread)
+        thread.finished.connect(thread.deleteLater)
 
         # Сохраняем ссылки, чтобы объекты не были собраны GC,
         # пока идёт генерация (иначе сигнал finished может не дойти).
-        self._current_progress = progress
+        self._current_progress = None
         self._current_thread = thread
         self._current_worker = worker
 
-        def on_finished(result: GenerationResult):
-            progress.close()
-            button.setEnabled(True)
-            thread.quit()
-            thread.wait()
-            # Очистка ссылок после завершения работы потока.
+        def _thread_cleanup():
             self._current_progress = None
             self._current_thread = None
             self._current_worker = None
+
+        thread.finished.connect(_thread_cleanup)
+
+        def on_finished(result: GenerationResult):
+            button.setEnabled(True)
+            thread.quit()
             if result.success and result.track:
                 mw = self.main_window
                 mw.project_tab.refresh()
@@ -142,5 +139,4 @@ class InstrumentTab(QWidget):
         worker.finished.connect(on_finished)
         thread.started.connect(worker.run)
         thread.start()
-        progress.exec()
 

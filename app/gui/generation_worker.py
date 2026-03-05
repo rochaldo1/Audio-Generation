@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 from typing import Any, Callable, Optional
 
 from PySide6.QtCore import QObject, QThread, Signal
@@ -41,8 +40,10 @@ class GenerationWorker(QObject):
             result = self._task()
             self.finished.emit(result)
         except Exception as e:
-            self.finished.emit(GenerationResult(
-                kind=GenerationKind.INSTRUMENTAL,  # placeholder
-                success=False,
-                error=str(e),
-            ))
+            self.finished.emit(
+                GenerationResult(
+                    kind=GenerationKind.INSTRUMENTAL,  # placeholder
+                    success=False,
+                    error=str(e),
+                )
+            )

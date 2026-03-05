@@ -66,29 +66,28 @@ class SfxTab(QWidget):
         self._run_generation(task, "Генерация SFX...", self.btn_generate)
 
     def _run_generation(self, task, label: str, button: QPushButton) -> None:
-        progress = QProgressDialog(label, None, 0, 0, self)
-        progress.setWindowTitle("Пожалуйста, подождите")
-        progress.setMinimumDuration(0)
-        progress.setMaximum(0)
         button.setEnabled(False)
 
-        thread = QThread()
+        thread = QThread(self)
         worker = GenerationWorker(task)
         worker.moveToThread(thread)
+        thread.finished.connect(thread.deleteLater)
+
+        def _thread_cleanup():
+            self._current_progress = None
+            self._current_thread = None
+            self._current_worker = None
+
+        thread.finished.connect(_thread_cleanup)
 
         # Не даём GC уничтожить поток/воркера раньше времени.
-        self._current_progress = progress
+        self._current_progress = None
         self._current_thread = thread
         self._current_worker = worker
 
         def on_finished(result: GenerationResult):
-            progress.close()
             button.setEnabled(True)
             thread.quit()
-            thread.wait()
-            self._current_progress = None
-            self._current_thread = None
-            self._current_worker = None
             if result.success and result.track:
                 mw = self.main_window
                 mw.project_tab.refresh()
@@ -99,5 +98,4 @@ class SfxTab(QWidget):
         worker.finished.connect(on_finished)
         thread.started.connect(worker.run)
         thread.start()
-        progress.exec()
 
