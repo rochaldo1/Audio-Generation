@@ -6,7 +6,6 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QLabel,
     QMessageBox,
-    QProgressDialog,
     QPushButton,
     QSpinBox,
     QTextEdit,
@@ -28,6 +27,30 @@ class VocalTab(QWidget):
         layout = QVBoxLayout(self)
         form = QFormLayout()
 
+        # Music (instrumental) parameters for the song
+        self.music_prompt_edit = QTextEdit()
+        self.music_genre_combo = QComboBox()
+        self.music_genre_combo.addItems(["", "cinematic", "electronic", "rock", "pop"])
+
+        self.music_density_combo = QComboBox()
+        self.music_density_combo.addItems(["low", "medium", "high"])
+        self.music_density_combo.setCurrentText("medium")
+
+        self.music_complexity_combo = QComboBox()
+        self.music_complexity_combo.addItems(["simple", "medium", "complex"])
+        self.music_complexity_combo.setCurrentText("medium")
+
+        self.music_tempo_spin = QSpinBox()
+        self.music_tempo_spin.setRange(40, 220)
+        self.music_tempo_spin.setValue(120)
+
+        form.addRow("Описание музыки (жанр, настроение, инструменты):", self.music_prompt_edit)
+        form.addRow("Жанр/стиль музыки:", self.music_genre_combo)
+        form.addRow("Плотность аранжировки:", self.music_density_combo)
+        form.addRow("Сложность структуры:", self.music_complexity_combo)
+        form.addRow("Темп (BPM):", self.music_tempo_spin)
+
+        # Vocal parameters
         self.lyrics_edit = QTextEdit()
         self.duration_spin = QSpinBox()
         self.duration_spin.setRange(5, 300)
@@ -57,10 +80,7 @@ class VocalTab(QWidget):
         self.btn_generate_vocal = QPushButton("Сгенерировать песню (музыка + вокал)")
         layout.addWidget(self.btn_generate_vocal)
 
-        info = QLabel(
-            "Введите текст песни (слова через пробел). "
-            "Модель r9y9/yoko_latest обучена на японском — для лучшего качества используйте японский текст или ромадзи."
-        )
+        info = QLabel("Введите текст песни. Музыка и вокал будут сгенерированы одновременно.")
         layout.addWidget(info)
 
         self.btn_generate_vocal.clicked.connect(self._on_generate_clicked)
@@ -82,8 +102,12 @@ class VocalTab(QWidget):
         )
 
         gen_params = GenerationParams(
-            prompt="vocal song",
+            prompt=self.music_prompt_edit.toPlainText().strip() or "full song with vocals",
             duration_seconds=self.duration_spin.value(),
+            tempo_bpm=self.music_tempo_spin.value(),
+            genre=self.music_genre_combo.currentText() or None,
+            arrangement_density=self.music_density_combo.currentText(),
+            structure_complexity=self.music_complexity_combo.currentText(),
         )
 
         def task():
@@ -93,6 +117,7 @@ class VocalTab(QWidget):
         self._run_generation(task, "Генерация вокала...", self.btn_generate_vocal)
 
     def _run_generation(self, task, label: str, button: QPushButton) -> None:
+        self.main_window.set_generation_state(True, label)
         button.setEnabled(False)
 
         thread = QThread(self)
@@ -113,12 +138,12 @@ class VocalTab(QWidget):
         self._current_worker = worker
 
         def on_finished(result: GenerationResult):
+            self.main_window.set_generation_state(False)
             button.setEnabled(True)
             thread.quit()
             if result.success and result.track:
                 mw = self.main_window
                 mw.project_tab.refresh()
-                mw.playback_controller.play_track(result.track)
             elif result.error:
                 QMessageBox.critical(self, "Ошибка генерации", result.error)
 

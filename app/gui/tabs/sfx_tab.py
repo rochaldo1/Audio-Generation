@@ -5,7 +5,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
     QMessageBox,
-    QProgressDialog,
     QPushButton,
     QSpinBox,
     QTextEdit,
@@ -66,6 +65,7 @@ class SfxTab(QWidget):
         self._run_generation(task, "Генерация SFX...", self.btn_generate)
 
     def _run_generation(self, task, label: str, button: QPushButton) -> None:
+        self.main_window.set_generation_state(True, label)
         button.setEnabled(False)
 
         thread = QThread(self)
@@ -86,12 +86,12 @@ class SfxTab(QWidget):
         self._current_worker = worker
 
         def on_finished(result: GenerationResult):
+            self.main_window.set_generation_state(False)
             button.setEnabled(True)
             thread.quit()
             if result.success and result.track:
                 mw = self.main_window
                 mw.project_tab.refresh()
-                mw.playback_controller.play_track(result.track)
             elif result.error:
                 QMessageBox.critical(self, "Ошибка генерации", result.error)
 

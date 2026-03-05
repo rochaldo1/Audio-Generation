@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -87,7 +88,8 @@ class GenerationController:
             genre=params.genre,
             arrangement_density=params.arrangement_density,
             structure_complexity=params.structure_complexity,
-            seed=None,
+            # Use a new random seed so that ACE-Step produces an actual variation.
+            seed=random.randint(1, 2**31 - 1),
         )
         return self.generate_instrumental(project, new_params)
 
@@ -124,20 +126,17 @@ class GenerationController:
         return tv
 
     def generate_sfx(self, project: Project, params: SfxParams) -> TrackVersion:
-        gen_params = GenerationParams(
-            prompt=params.prompt,
-            duration_seconds=params.duration_seconds,
-            genre=None,
-        )
         out_wav = project.base_path / f"{uuid.uuid4().hex[:8]}_sfx.wav"
-        self.ctx.ace_step_service.generate_instrumental(gen_params, out_wav)
+        # Use dedicated SFX generation path in AceStepService so that
+        # prompts explicitly describe a sound effect rather than an instrumental track.
+        self.ctx.ace_step_service.generate_sfx(params, out_wav)
 
         tv = TrackVersion(
             id=uuid.uuid4().hex[:8],
             track_type=TrackType.SFX,
             audio_path_wav=out_wav,
             sfx_params=params,
-            generation_params=gen_params,
+            generation_params=None,
             engine="ace-step-1.5",
         )
         project.track_versions.append(tv)

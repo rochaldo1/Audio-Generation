@@ -106,6 +106,9 @@ class InstrumentTab(QWidget):
         label: str,
         button: QPushButton,
     ) -> None:
+        # Global progress + disable generation in all tabs
+        self.main_window.set_generation_state(True, label)
+
         button.setEnabled(False)
 
         thread = QThread(self)
@@ -127,12 +130,13 @@ class InstrumentTab(QWidget):
         thread.finished.connect(_thread_cleanup)
 
         def on_finished(result: GenerationResult):
+            # Stop global generation state regardless of success
+            self.main_window.set_generation_state(False)
             button.setEnabled(True)
             thread.quit()
             if result.success and result.track:
                 mw = self.main_window
                 mw.project_tab.refresh()
-                mw.playback_controller.play_track(result.track)
             elif result.error:
                 QMessageBox.critical(self, "Ошибка генерации", result.error)
 

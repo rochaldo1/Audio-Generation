@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QMainWindow,
     QPushButton,
+    QProgressBar,
     QSplitter,
     QTabWidget,
     QVBoxLayout,
@@ -40,6 +41,13 @@ class MainWindow(QMainWindow):
         projects_root = (Path.cwd() / "projects").resolve()
         self.statusBar().showMessage(f"Проекты сохраняются в: {projects_root}")
 
+        # Global generation progress bar (non-modal, in status bar)
+        self.generation_progress = QProgressBar()
+        self.generation_progress.setTextVisible(True)
+        self.generation_progress.setRange(0, 0)  # indeterminate
+        self.generation_progress.hide()
+        self.statusBar().addPermanentWidget(self.generation_progress)
+
         # Core context and controllers
         model_manager = ModelManager()
         ace_step_service = AceStepService()
@@ -62,6 +70,38 @@ class MainWindow(QMainWindow):
 
         self._init_ui()
         self._load_projects()
+
+    # ------------------------------------------------------------------ #
+    # Global generation state (progress + button disabling)
+    # ------------------------------------------------------------------ #
+
+    def set_generation_state(self, in_progress: bool, message: str | None = None) -> None:
+        """
+        Enable/disable all generation controls and show/hide busy progress bar.
+        """
+        if in_progress:
+            if message:
+                self.generation_progress.setFormat(message)
+            self.generation_progress.show()
+            # Disable generate buttons across tabs
+            for btn in [
+                getattr(self.instrument_tab, "btn_generate", None),
+                getattr(self.instrument_tab, "btn_variation", None),
+                getattr(self.vocal_tab, "btn_generate_vocal", None),
+                getattr(self.sfx_tab, "btn_generate", None),
+            ]:
+                if btn is not None:
+                    btn.setEnabled(False)
+        else:
+            self.generation_progress.hide()
+            for btn in [
+                getattr(self.instrument_tab, "btn_generate", None),
+                getattr(self.instrument_tab, "btn_variation", None),
+                getattr(self.vocal_tab, "btn_generate_vocal", None),
+                getattr(self.sfx_tab, "btn_generate", None),
+            ]:
+                if btn is not None:
+                    btn.setEnabled(True)
 
     def _init_ui(self) -> None:
         central = QWidget()

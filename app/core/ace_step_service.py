@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from app.models.project_models import GenerationParams, VocalParams
+from app.models.project_models import GenerationParams, SfxParams, VocalParams
 
 
 @dataclass
@@ -105,6 +105,47 @@ class AceStepService:
 
         return output_path
 
+    def generate_sfx(
+        self,
+        params: SfxParams,
+        output_path: Path,
+    ) -> Path:
+        """
+        Generate a short sound effect / atmosphere clip using ACE-Step.
+
+        Это обёртка над тем же pipeline, но с более жёстким описанием того,
+        что нужно именно SFX, а не полноценный инструментальный трек.
+        """
+        pipe = self._get_pipeline()
+
+        duration = max(0.5, float(params.duration_seconds))
+        prompt = self._build_sfx_prompt(params)
+
+        # Для эффектов тоже используем [inst], но семантика задаётся через prompt.
+        lyrics = "[inst]"
+
+        pipe(
+            audio_duration=duration,
+            prompt=prompt,
+            lyrics=lyrics,
+            format="wav",
+            save_path=str(output_path),
+            manual_seeds=1,
+            infer_step=self.config.infer_step,
+            guidance_scale=self.config.guidance_scale,
+            scheduler_type=self.config.scheduler_type,
+            cfg_type=self.config.cfg_type,
+            omega_scale=self.config.omega_scale,
+            guidance_interval=self.config.guidance_interval,
+            guidance_interval_decay=self.config.guidance_interval_decay,
+            min_guidance_scale=self.config.min_guidance_scale,
+            use_erg_tag=self.config.use_erg_tag,
+            use_erg_lyric=False,
+            use_erg_diffusion=self.config.use_erg_diffusion,
+        )
+
+        return output_path
+
     def generate_song(
         self,
         gen_params: GenerationParams,
@@ -188,6 +229,34 @@ class AceStepService:
         parts.append(f"vocal style: {vocal_params.style}")
         parts.append(f"delivery: {vocal_params.delivery}")
         parts.append(f"intensity: {vocal_params.intensity:.2f}")
+
+        return ", ".join(parts)
+
+    def _build_sfx_prompt(self, params: SfxParams) -> str:
+        """
+        Построить промпт для генерации звуковых эффектов.
+
+        Важно явно указать, что это sound effect / atmosphere, чтобы
+        модель не пыталась сделать полноценный музыкальный трек.
+        """
+        parts: list[str] = []
+        base_prompt = params.prompt.strip() if params.prompt else "sound effect"
+
+        if params.sfx_type == "atmosphere":
+            parts.append(f"ambient atmosphere, background soundscape, {base_prompt}")
+            parts.append("no melody, no drums, evolving texture")
+        elif params.sfx_type == "short_sfx":
+            parts.append(f"short one-shot sound effect, {base_prompt}")
+            parts.append("no music, no melody, single hit or impact")
+        elif params.sfx_type == "transition":
+            parts.append(f"transition sound effect, {base_prompt}")
+            parts.append("riser or sweep, no full music, no vocals")
+        elif params.sfx_type == "background":
+            parts.append(f"background loopable sound effect, {base_prompt}")
+            parts.append("subtle, no prominent melody, can loop seamlessly")
+        else:
+            parts.append(f"sound effect, {base_prompt}")
+            parts.append("no vocals, no full music track")
 
         return ", ".join(parts)
 
