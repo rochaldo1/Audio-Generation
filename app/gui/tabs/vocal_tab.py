@@ -50,13 +50,11 @@ class VocalTab(QWidget):
         form.addRow("Сложность структуры:", self.music_complexity_combo)
         form.addRow("Темп (BPM):", self.music_tempo_spin)
 
-        # Vocal parameters
+        # Vocal parameters (ACE-Step 1.5: стиль и манера задаются через промпт, выбора голоса нет)
         self.lyrics_edit = QTextEdit()
         self.duration_spin = QSpinBox()
         self.duration_spin.setRange(5, 300)
         self.duration_spin.setValue(30)
-        self.voice_combo = QComboBox()
-        self.voice_combo.addItems(["default"])
 
         self.style_combo = QComboBox()
         self.style_combo.addItems(["neutral", "soft", "powerful"])
@@ -70,7 +68,6 @@ class VocalTab(QWidget):
 
         form.addRow("Текст песни:", self.lyrics_edit)
         form.addRow("Длительность трека (сек):", self.duration_spin)
-        form.addRow("Голос:", self.voice_combo)
         form.addRow("Стиль исполнения:", self.style_combo)
         form.addRow("Манера подачи:", self.delivery_combo)
         form.addRow("Интенсивность:", self.intensity_spin)
@@ -94,7 +91,6 @@ class VocalTab(QWidget):
 
         vocal_params = VocalParams(
             lyrics=self.lyrics_edit.toPlainText().strip() or "la la la",
-            voice_id=self.voice_combo.currentText(),
             style=self.style_combo.currentText(),
             delivery=self.delivery_combo.currentText(),
             intensity=self.intensity_spin.value() / 100.0,

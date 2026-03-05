@@ -79,6 +79,7 @@ class ProjectRepository:
     def _track_to_dict(tv: TrackVersion) -> Dict:
         return {
             "id": tv.id,
+            "title": tv.title,
             "track_type": tv.track_type.value,
             "audio_path_wav": str(tv.audio_path_wav),
             "audio_path_mp3": str(tv.audio_path_mp3) if tv.audio_path_mp3 else None,
@@ -103,6 +104,7 @@ class ProjectRepository:
 
         return TrackVersion(
             id=data["id"],
+            title=data.get("title"),
             track_type=TrackType(data["track_type"]),
             audio_path_wav=project_dir / Path(data["audio_path_wav"]).name,
             audio_path_mp3=project_dir / Path(data["audio_path_mp3"]).name if data.get("audio_path_mp3") else None,

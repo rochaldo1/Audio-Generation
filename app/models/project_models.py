@@ -55,6 +55,8 @@ class TrackVersion:
     audio_path_mp3: Optional[Path] = None
     audio_path_flac: Optional[Path] = None
 
+    title: Optional[str] = None  # Пользовательское название трека
+
     generation_params: Optional[GenerationParams] = None
     vocal_params: Optional[VocalParams] = None
     sfx_params: Optional[SfxParams] = None

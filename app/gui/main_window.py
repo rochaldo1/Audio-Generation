@@ -4,8 +4,10 @@ from pathlib import Path
 
 from PySide6.QtWidgets import (
     QHBoxLayout,
+    QInputDialog,
     QListWidget,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QProgressBar,
     QSplitter,
@@ -119,11 +121,13 @@ class MainWindow(QMainWindow):
         self.btn_new_instr_project = QPushButton("Новый проект: Музыка")
         self.btn_new_song_project = QPushButton("Новый проект: Песня")
         self.btn_new_sfx_project = QPushButton("Новый проект: SFX")
+        self.btn_rename_project = QPushButton("Переименовать проект")
 
         left_layout.addWidget(self.project_list)
         left_layout.addWidget(self.btn_new_instr_project)
         left_layout.addWidget(self.btn_new_song_project)
         left_layout.addWidget(self.btn_new_sfx_project)
+        left_layout.addWidget(self.btn_rename_project)
 
         splitter.addWidget(left_widget)
 
@@ -152,6 +156,7 @@ class MainWindow(QMainWindow):
             lambda: self._create_project(ContentType.SFX)
         )
         self.project_list.currentRowChanged.connect(self._on_project_selected)
+        self.btn_rename_project.clicked.connect(self._on_rename_project_clicked)
 
     def _load_projects(self) -> None:
         self.project_list.clear()
@@ -180,5 +185,30 @@ class MainWindow(QMainWindow):
             self.current_project = None
             return
         self.current_project = self._projects[index]
+        self.project_tab.refresh()
+
+    def _on_rename_project_clicked(self) -> None:
+        project = self.current_project
+        if project is None:
+            QMessageBox.warning(
+                self, "Нет выбора",
+                "Выберите проект в списке слева для переименования.",
+            )
+            return
+        new_name, ok = QInputDialog.getText(
+            self,
+            "Переименовать проект",
+            "Название проекта:",
+            text=project.name,
+        )
+        if not ok or new_name is None:
+            return
+        new_name = new_name.strip()
+        if not new_name:
+            QMessageBox.warning(self, "Ошибка", "Название не может быть пустым.")
+            return
+        project.name = new_name
+        self.project_controller.save_project(project)
+        self._load_projects()
         self.project_tab.refresh()
 
