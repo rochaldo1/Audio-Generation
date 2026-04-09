@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from app.core.ace_step_service import AceStepService
+from app.core.ace_step_service import AceStepService, ace_step_config_from_env
 from app.core.controllers import AppContext, GenerationController, ProjectController
 from app.models.project_models import ContentType, GenerationParams
 from app.storage.project_repository import ProjectRepository
@@ -16,7 +16,7 @@ def main() -> None:
     parser.add_argument("--duration", type=int, default=15, help="Duration in seconds.")
     args = parser.parse_args()
 
-    ace_step_service = AceStepService()
+    ace_step_service = AceStepService(ace_step_config_from_env())
     project_repo = ProjectRepository(Path.cwd() / "projects_cli")
     audio_player = AudioPlayer()
 

@@ -3,13 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
     QHBoxLayout,
     QInputDialog,
+    QLabel,
     QListWidget,
     QMainWindow,
     QMessageBox,
-    QPushButton,
     QProgressBar,
+    QPushButton,
     QSplitter,
     QTabWidget,
     QVBoxLayout,
@@ -17,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.audio.player import AudioPlayer
-from app.core.ace_step_service import AceStepService
+from app.core.ace_step_service import AceStepService, ace_step_config_from_env
 from app.core.controllers import (
     AppContext,
     GenerationController,
@@ -32,6 +35,7 @@ from .tabs.instrument_tab import InstrumentTab
 from .tabs.project_tab import ProjectTab
 from .tabs.sfx_tab import SfxTab
 from .tabs.vocal_tab import VocalTab
+from .theme import THEME_DARK, THEME_LIGHT, apply_theme, load_theme_preference, save_theme_preference
 
 
 class MainWindow(QMainWindow):
@@ -50,7 +54,7 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.generation_progress)
 
         # Core context and controllers
-        ace_step_service = AceStepService()
+        ace_step_service = AceStepService(ace_step_config_from_env())
         project_repo = ProjectRepository(Path.cwd() / "projects")
         audio_player = AudioPlayer()
 
@@ -128,6 +132,16 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.btn_rename_project)
         left_layout.addWidget(self.btn_delete_project)
 
+        theme_row = QHBoxLayout()
+        theme_row.addWidget(QLabel("Тема:"))
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItem("Тёмная", THEME_DARK)
+        self.theme_combo.addItem("Светлая", THEME_LIGHT)
+        self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
+        theme_row.addWidget(self.theme_combo, stretch=1)
+        left_layout.addLayout(theme_row)
+        self._sync_theme_combo()
+
         splitter.addWidget(left_widget)
 
         # Right: tabs
@@ -157,6 +171,25 @@ class MainWindow(QMainWindow):
         self.project_list.currentRowChanged.connect(self._on_project_selected)
         self.btn_rename_project.clicked.connect(self._on_rename_project_clicked)
         self.btn_delete_project.clicked.connect(self._on_delete_project_clicked)
+
+    def _sync_theme_combo(self) -> None:
+        pref = load_theme_preference()
+        idx = self.theme_combo.findData(pref)
+        if idx < 0:
+            idx = self.theme_combo.findData(THEME_DARK)
+        self.theme_combo.blockSignals(True)
+        self.theme_combo.setCurrentIndex(idx)
+        self.theme_combo.blockSignals(False)
+
+    def _on_theme_changed(self) -> None:
+        theme = self.theme_combo.currentData()
+        if theme is None:
+            return
+        app = QApplication.instance()
+        if app is None:
+            return
+        apply_theme(app, theme)
+        save_theme_preference(theme)
 
     def _load_projects(self) -> None:
         self.project_list.clear()

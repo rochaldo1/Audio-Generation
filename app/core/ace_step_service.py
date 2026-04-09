@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 from app.models.project_models import GenerationParams, SfxParams, VocalParams
+
+
+_HF_REPO_PATTERN = re.compile(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$")
 
 
 @dataclass
@@ -30,6 +35,58 @@ class AceStepConfig:
     use_erg_lyric: bool = True
     use_erg_diffusion: bool = True
 
+    # Local directory or Hugging Face repo id; None / missing path → base model (no LoRA)
+    lora_instrumental: Optional[str] = None
+    lora_vocal: Optional[str] = None
+    lora_sfx: Optional[str] = None
+
+
+def _repository_root() -> Path:
+    """Directory that contains the `app/` package (project root when running from repo)."""
+    return Path(__file__).resolve().parent.parent.parent
+
+
+def _default_lora_folder(subdir: str) -> Optional[str]:
+    """
+    If `<repo>/loras/<subdir>/pytorch_lora_weights.safetensors` exists, return that directory path.
+    """
+    d = _repository_root() / "loras" / subdir
+    weights = d / "pytorch_lora_weights.safetensors"
+    if d.is_dir() and weights.is_file():
+        return str(d.resolve())
+    return None
+
+
+def ace_step_config_from_env() -> AceStepConfig:
+    """
+    Build config including optional LoRA paths.
+
+    For each mode, the value is taken in order:
+    1. Non-empty environment variable (`ACE_STEP_LORA_INSTRUMENTAL`, `ACE_STEP_LORA_VOCAL`, `ACE_STEP_LORA_SFX`)
+       — Hugging Face repo id or a local path.
+    2. Else, if the repo contains `loras/<instrumental|vocal|sfx>/pytorch_lora_weights.safetensors`, that folder.
+    3. Else None (base model for that mode).
+    """
+
+    def _opt(name: str) -> Optional[str]:
+        v = os.environ.get(name)
+        if v is None:
+            return None
+        s = v.strip()
+        return s if s else None
+
+    def _merged(env_name: str, lora_subdir: str) -> Optional[str]:
+        v = _opt(env_name)
+        if v:
+            return v
+        return _default_lora_folder(lora_subdir)
+
+    return AceStepConfig(
+        lora_instrumental=_merged("ACE_STEP_LORA_INSTRUMENTAL", "instrumental"),
+        lora_vocal=_merged("ACE_STEP_LORA_VOCAL", "vocal"),
+        lora_sfx=_merged("ACE_STEP_LORA_SFX", "sfx"),
+    )
+
 
 class AceStepService:
     """
@@ -43,6 +100,27 @@ class AceStepService:
     def __init__(self, config: Optional[AceStepConfig] = None) -> None:
         self.config = config or AceStepConfig()
         self._pipeline = None
+
+    @staticmethod
+    def _lora_name_or_path_for_inference(raw: Optional[str]) -> str:
+        """
+        Resolve configured LoRA to a path/repo id for ACEStepPipeline, or \"none\" for the base model.
+
+        Missing/unusable local paths fall back to \"none\" so generation still runs on the base checkpoint.
+        """
+        if raw is None:
+            return "none"
+        s = raw.strip()
+        if not s:
+            return "none"
+        if _HF_REPO_PATTERN.fullmatch(s):
+            return s
+        p = Path(s)
+        if not p.exists():
+            return "none"
+        if p.is_dir() and (p / "pytorch_lora_weights.safetensors").is_file():
+            return str(p.resolve())
+        return "none"
 
     def _get_pipeline(self):
         if self._pipeline is None:
@@ -101,6 +179,10 @@ class AceStepService:
             use_erg_tag=self.config.use_erg_tag,
             use_erg_lyric=False,
             use_erg_diffusion=self.config.use_erg_diffusion,
+            lora_name_or_path=self._lora_name_or_path_for_inference(
+                self.config.lora_instrumental
+            ),
+            lora_weight=1.0,
         )
 
         return output_path
@@ -142,6 +224,8 @@ class AceStepService:
             use_erg_tag=self.config.use_erg_tag,
             use_erg_lyric=False,
             use_erg_diffusion=self.config.use_erg_diffusion,
+            lora_name_or_path=self._lora_name_or_path_for_inference(self.config.lora_sfx),
+            lora_weight=1.0,
         )
 
         return output_path
@@ -181,6 +265,8 @@ class AceStepService:
             use_erg_tag=self.config.use_erg_tag,
             use_erg_lyric=self.config.use_erg_lyric,
             use_erg_diffusion=self.config.use_erg_diffusion,
+            lora_name_or_path=self._lora_name_or_path_for_inference(self.config.lora_vocal),
+            lora_weight=1.0,
         )
 
         return output_path

@@ -209,3 +209,6 @@ __marimo__/
 # Audio Generation Suite
 projects/
 presets/
+
+# Optional LoRA weights (copy adapter folders into loras/<mode>/ after training)
+loras/**/*.safetensors
