@@ -110,7 +110,7 @@ class ProjectRepository:
             audio_path_mp3=project_dir / Path(data["audio_path_mp3"]).name if data.get("audio_path_mp3") else None,
             audio_path_flac=project_dir / Path(data["audio_path_flac"]).name if data.get("audio_path_flac") else None,
             generation_params=GenerationParams(**gen_params) if gen_params else None,
-            vocal_params=VocalParams(**vocal_params) if vocal_params else None,
+            vocal_params=VocalParams.from_dict(vocal_params) if vocal_params else None,
             sfx_params=SfxParams(**sfx_params) if sfx_params else None,
             duration_seconds=data.get("duration_seconds"),
             sample_rate=data.get("sample_rate"),

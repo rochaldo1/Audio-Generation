@@ -76,7 +76,7 @@ class PresetRepository:
         data = self._load_preset(name)
         if not data or data.get("type") != "vocal":
             return None
-        return VocalParams(**data["params"])
+        return VocalParams.from_dict(data["params"])
 
     def load_sfx_preset(self, name: str) -> Optional[SfxParams]:
         data = self._load_preset(name)

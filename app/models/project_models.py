@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, fields, field
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
@@ -33,11 +33,16 @@ class GenerationParams:
 @dataclass
 class VocalParams:
     lyrics: str
-    voice_id: str = "default"
     style: str = "neutral"
     delivery: str = "legato"  # legato / staccato / mixed
     intensity: float = 0.5  # 0..1
     enable_background_voices: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict) -> VocalParams:
+        """Restore from JSON; ignores unknown/legacy keys (e.g. removed ``voice_id``)."""
+        allowed = {f.name for f in fields(cls)}
+        return cls(**{k: v for k, v in data.items() if k in allowed})
 
 
 @dataclass
